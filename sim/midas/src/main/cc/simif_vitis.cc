@@ -132,8 +132,9 @@ uint32_t simif_vitis_t::is_write_ready() {
 }
 
 char *simif_vitis_t::get_memory_base() {
-  std::cerr << "FPGA-managed streams are not yet supported";
-  abort();
+  // std::cerr << "FPGA-managed streams are not yet supported";
+  // abort();
+  return (char *)0xc10000;
 }
 
 std::unique_ptr<simif_t>
