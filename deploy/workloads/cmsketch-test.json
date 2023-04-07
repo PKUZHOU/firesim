@@ -1,0 +1,8 @@
+{
+	"benchmark_name": "cmsketch-test",
+	"common_simulation_outputs": [
+		"uartlog"
+	],
+	"common_bootbinary": "../../../target-design/chipyard/generators/cmsketch/software/cmsketch_test.riscv",
+	"common_rootfs": "../../../target-design/chipyard/software/firemarshal/boards/default/installers/firesim/dummy.rootfs"
+}
