@@ -6,7 +6,7 @@
 #ifdef VM_TRACE
 #include <verilated_vcd_c.h>
 #endif
-
+#include <iostream>
 #include "emul/mm.h"
 #include "emul/mmio.h"
 #include "emul/simif_emul.h"
@@ -73,11 +73,16 @@ int simif_emul_verilator_t::run(simulation_t &sim) {
     tick();
   }
   top->reset = 0;
-
-  while (!top->fin) {
+  uint64_t debug_stamp=0;
+  uint64_t debug_interval=1000000;
+  while (!top->fin&& main_time<=static_cast<uint64_t>(1000000000000)) {
     tick();
+    if(main_time>debug_stamp && main_time-debug_stamp>debug_interval){
+      std::cout<<"main_time"<<main_time<<std::endl;
+      debug_stamp+=debug_interval;
+    }
   }
-
+  std::cout<<"quit main_time: "<<main_time<<std::endl;
   return end();
 }
 
@@ -85,7 +90,7 @@ void simif_emul_verilator_t::tick() {
   top->eval();
 
 #if VM_TRACE
-  if (tfp)
+  if (tfp&&main_time>=1391000000&&main_time<=1393000000)
     tfp->dump((double)main_time);
 #endif // VM_TRACE
   main_time++;
@@ -93,7 +98,7 @@ void simif_emul_verilator_t::tick() {
   top->eval();
 
 #if VM_TRACE
-  if (tfp)
+  if (tfp&&main_time>=1391000000&&main_time<=1393000000)
     tfp->dump((double)main_time);
 #endif // VM_TRACE
   main_time++;

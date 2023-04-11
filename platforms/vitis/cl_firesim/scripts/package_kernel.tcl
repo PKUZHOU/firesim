@@ -64,6 +64,8 @@ set_property SELECTED_SIM_MODEL rtl [get_ips]
 
 generate_target all [get_ips]
 
+# ipx is a namespace in Vitis TCL that contains commands for packaging and managing IP cores. 
+# It is used to create and manage IP cores in Vitis
 ipx::package_project -root_dir $path_to_packaged -vendor xilinx.com -library RTLKernel -taxonomy /KernelIP -import_files -set_current false
 ipx::unload_core $path_to_packaged/component.xml
 ipx::edit_ip_in_project -upgrade true -name tmp_edit_project -directory $path_to_packaged $path_to_packaged/component.xml
@@ -75,16 +77,24 @@ foreach up [ipx::get_user_parameters] {
     ipx::remove_user_parameter [get_property NAME $up] $core
 }
 
+##### The beginning
+# To associate bus interfaces with a clock domain
 ipx::associate_bus_interfaces -busif s_axi_lite -clock ap_clk $core
 ipx::associate_bus_interfaces -busif host_mem_0 -clock ap_clk $core
+ipx::associate_bus_interfaces -busif host_mem_1 -clock ap_clk $core
 
 # set up mem map for axis intf
 set mem_map    [::ipx::add_memory_map -quiet "s_axi_lite" $core]
 set addr_block [::ipx::add_address_block -quiet "reg0" $mem_map]
 
 set host_mem_0_offset      [::ipx::add_register -quiet "host_mem_0_offset" $addr_block]
+set host_mem_1_offset      [::ipx::add_register -quiet "host_mem_1_offset" $addr_block]
+
+### TODO: revise address_offset
 set_property address_offset 0x010 $host_mem_0_offset
 set_property size           64    $host_mem_0_offset
+set_property address_offset 0x050 $host_mem_1_offset
+set_property size           64    $host_mem_1_offset
 
 set_property slave_memory_map_ref "s_axi_lite" [::ipx::get_bus_interfaces -of $core "s_axi_lite"]
 
@@ -92,9 +102,15 @@ set_property slave_memory_map_ref "s_axi_lite" [::ipx::get_bus_interfaces -of $c
 ipx::add_register_parameter ASSOCIATED_BUSIF $host_mem_0_offset
 set_property value {host_mem_0} [::ipx::get_register_parameters -of_objects $host_mem_0_offset ASSOCIATED_BUSIF]
 
+ipx::add_register_parameter ASSOCIATED_BUSIF $host_mem_1_offset
+set_property value {host_mem_1} [::ipx::get_register_parameters -of_objects $host_mem_1_offset ASSOCIATED_BUSIF]
+# set bus parameters
 ipx::add_bus_parameter DATA_WIDTH [ipx::get_bus_interfaces host_mem_0 -of_objects [ipx::current_core]]
 set_property value          {64}  [ipx::get_bus_parameters DATA_WIDTH -of_objects [ipx::get_bus_interfaces host_mem_0 -of_objects [ipx::current_core]]]
 
+ipx::add_bus_parameter DATA_WIDTH [ipx::get_bus_interfaces host_mem_1 -of_objects [ipx::current_core]]
+set_property value          {64}  [ipx::get_bus_parameters DATA_WIDTH -of_objects [ipx::get_bus_interfaces host_mem_1 -of_objects [ipx::current_core]]]
+##### the end 
 set_property xpm_libraries {XPM_CDC XPM_MEMORY XPM_FIFO} $core
 set_property sdx_kernel true $core
 set_property sdx_kernel_type rtl $core
