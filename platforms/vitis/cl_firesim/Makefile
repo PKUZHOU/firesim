@@ -169,6 +169,7 @@ vpp_config_overlay_args = $(addprefix --config ,$(vpp_config_overlays))
 	# Move into temp directory to avoid polluting top-level workdir
 	cd $(@D)/..; $(VPP) $(vpp_config_overlay_args) $(VPP_TARGET_SPECIFIC_ARGS) $(VPP_COMMON_ARGS) \
 	--connectivity.sp $(PROJECT_NAME)_1.host_mem_0:DDR[0] \
+	--connectivity.sp $(PROJECT_NAME)_1.host_mem_1:DDR[1] \
 	--link $(VPP_LDFLAGS) -o $@ $<
 
 
