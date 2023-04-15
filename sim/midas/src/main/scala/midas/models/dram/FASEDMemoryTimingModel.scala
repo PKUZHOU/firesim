@@ -12,6 +12,8 @@ import freechips.rocketchip.amba.axi4._
 import freechips.rocketchip.tilelink._
 import freechips.rocketchip.devices.tilelink._
 import junctions._
+import midas.models.dram._
+
 
 import chisel3._
 import chisel3.util._
@@ -155,6 +157,8 @@ abstract class BaseConfig {
 
   // Timing model classes implement this function to elaborate the correct module
   def elaborate()(implicit p: Parameters): TimingModel
+  // def elaborate()(implicit p: Parameters): TimingModelWithCMsketch
+  // def elaboratewithcmsketch()(implicit p: Parameters): TimingModelWithCMsketch
 
   def maxWritesBits(implicit p: Parameters) = log2Up(maxWrites)
   def maxReadsBits(implicit p: Parameters) = log2Up(maxReads)
@@ -266,6 +270,17 @@ class FASEDMemoryTimingModel(completeConfig: CompleteConfig, hostParams: Paramet
     // to the host memory system
     val funcModelRegs = Wire(new FuncModelProgrammableRegs)
     val ingress = Module(new IngressModule(cfg))
+
+    // val datain = RegInit(0.U(32.W))
+    // datain := tNasti.ar.bits.addr
+    // val wren = RegInit(false.B)
+    // wren := tNasti.ar.fire
+
+    // val cm = Module(new CMsketch(10,2))
+    // cm.io.datain  := datain
+    // cm.io.wren    := wren
+    // cm.io.datard  := 0.U(32.W)
+    // cm.io.rden    := false.B
 
     val nastiToHostDRAM = Wire(new NastiIO)
     AXI4NastiAssigner.toAXI4(toHostDRAM, nastiToHostDRAM)

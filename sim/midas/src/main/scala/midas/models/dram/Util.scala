@@ -326,6 +326,7 @@ class AXI4ReleaserIO(implicit val p: Parameters) extends ParameterizedBundle()(p
   val egressResp = Flipped(new EgressResp)
   val nextRead = Flipped(Decoupled(new ReadResponseMetaData))
   val nextWrite = Flipped(Decoupled(new WriteResponseMetaData))
+  val docmread = Input(Bool())
 }
 
 
@@ -336,7 +337,7 @@ class AXI4Releaser(implicit p: Parameters) extends Module {
   currentRead.ready := io.r.fire && io.r.bits.last
   io.egressReq.r.valid := io.nextRead.fire
   io.egressReq.r.bits := io.nextRead.bits.id
-  io.r.valid := currentRead.valid
+  io.r.valid := currentRead.valid & (!io.docmread)
   io.r.bits := io.egressResp.rBits
   io.egressResp.rReady := io.r.ready
 
