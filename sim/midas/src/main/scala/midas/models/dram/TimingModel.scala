@@ -61,7 +61,6 @@ abstract class TimingModelIO(implicit val p: Parameters) extends Bundle {
   val egressResp = Flipped(new EgressResp)
   // This sub-bundle contains all the programmable fields of the model
   val mmReg: MMRegIO
-  val docmread = Input(Bool())
 }
 
 abstract class TimingModel(val cfg: BaseConfig)(implicit val p: Parameters) extends Module
@@ -99,8 +98,8 @@ abstract class TimingModel(val cfg: BaseConfig)(implicit val p: Parameters) exte
 
 
   val pendingReads = SatUpDownCounter(cfg.maxReads)
-  pendingReads.inc := tNasti.ar.fire & ((tNasti.ar.bits.addr >= (0x080100000L+100).asUInt)|tNasti.ar.bits.addr<=0x080100000L.asUInt)
-  pendingReads.dec := (tNasti.r.fire && tNasti.r.bits.last) & ((tNasti.ar.bits.addr >= (0x080100000L+100).asUInt)|tNasti.ar.bits.addr<=0x080100000L.asUInt)
+  pendingReads.inc := tNasti.ar.fire
+  pendingReads.dec := tNasti.r.fire && tNasti.r.bits.last
 
   val pendingAWReq = SatUpDownCounter(cfg.maxWrites)
   pendingAWReq.inc := tNasti.aw.fire
@@ -118,9 +117,8 @@ abstract class TimingModel(val cfg: BaseConfig)(implicit val p: Parameters) exte
 
   // Release; returns responses to target
   val xactionRelease = Module(new AXI4Releaser)
-  xactionRelease.io.docmread := io.docmread
-  tNasti.r <> xactionRelease.io.r
   tNasti.b <> xactionRelease.io.b
+  tNasti.r <> xactionRelease.io.r
   io.egressReq <> xactionRelease.io.egressReq
   xactionRelease.io.egressResp <> io.egressResp
 
