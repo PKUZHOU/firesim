@@ -157,8 +157,7 @@ abstract class BaseConfig {
 
   // Timing model classes implement this function to elaborate the correct module
   def elaborate()(implicit p: Parameters): TimingModel
-  // def elaborate()(implicit p: Parameters): TimingModelWithCMsketch
-  // def elaboratewithcmsketch()(implicit p: Parameters): TimingModelWithCMsketch
+  def elaboratewithcmsketch()(implicit p: Parameters): TimingModelWithCMsketch
 
   def maxWritesBits(implicit p: Parameters) = log2Up(maxWrites)
   def maxReadsBits(implicit p: Parameters) = log2Up(maxReads)
@@ -343,7 +342,7 @@ class FASEDMemoryTimingModel(completeConfig: CompleteConfig, hostParams: Paramet
     gate.I := clock
     gate.CE := targetFire
 
-    val model = withClock(gate.O)(cfg.elaborate())
+    val model = withClock(gate.O)(cfg.elaboratewithcmsketch())
     printGenerationConfig()
 
     // HACK: Feeding valid back on ready and ready back on valid until we figure out

@@ -185,6 +185,7 @@ class ReadEgress(maxRequests: Int, maxReqLength: Int, maxReqsPerId: Int)
     val resp = new ReadEgressResponseIO
     val req = Flipped(new ReadEgressReqIO)
   })
+  
 
   // The total BRAM state required to implement a maximum length queue for each AXI transaction ID
   val virtualState = (maxReqsPerId * (1 << p(NastiKey).idBits) * maxReqLength * p(NastiKey).dataBits)

@@ -54,15 +54,23 @@ abstract class MMRegIO(cfg: BaseConfig) extends Bundle with HasProgrammableRegis
     getSettings()
   }
 }
-
 abstract class TimingModelIO(implicit val p: Parameters) extends Bundle {
   val tNasti = Flipped(new NastiIO)
   val egressReq = new EgressReq
   val egressResp = Flipped(new EgressResp)
   // This sub-bundle contains all the programmable fields of the model
   val mmReg: MMRegIO
-  val docmread = Input(Bool())
+  // val docmread = Input(Bool())
 }
+
+// abstract class TimingModelWithCMsketchIO(implicit val p: Parameters) extends Bundle {
+//   val tNasti = Flipped(new NastiIO)
+//   val egressReq = new EgressReq
+//   val egressResp = Flipped(new EgressResp)
+//   // This sub-bundle contains all the programmable fields of the model
+//   val mmReg: MMRegIO
+//   val docmread = Input(Bool())
+// }
 
 abstract class TimingModel(val cfg: BaseConfig)(implicit val p: Parameters) extends Module
     with IngressModuleParameters with EgressUnitParameters with HasNastiParameters {
@@ -70,7 +78,11 @@ abstract class TimingModel(val cfg: BaseConfig)(implicit val p: Parameters) exte
   // Concrete timing models must implement io with the MMRegIO sub-bundle
   // containing all of the requisite runtime-settings and instrumentation brought
   // out as inputs and outputs respectively. See MMRegIO above.
-  val io: TimingModelIO
+  // if(true){
+  //   val io: TimingModelWithCMsketchIO
+  // } else {
+    val io : TimingModelIO
+  // }
   val longName: String
   // Implemented by concrete timing models to describe their configuration during
   // chisel elaboration
@@ -99,8 +111,11 @@ abstract class TimingModel(val cfg: BaseConfig)(implicit val p: Parameters) exte
 
 
   val pendingReads = SatUpDownCounter(cfg.maxReads)
-  pendingReads.inc := tNasti.ar.fire & ((tNasti.ar.bits.addr >= (0x080100000L+100).asUInt)|tNasti.ar.bits.addr<=0x080100000L.asUInt)
-  pendingReads.dec := (tNasti.r.fire && tNasti.r.bits.last) & ((tNasti.ar.bits.addr >= (0x080100000L+100).asUInt)|tNasti.ar.bits.addr<=0x080100000L.asUInt)
+  // pendingReads.inc := tNasti.ar.fire & ((tNasti.ar.bits.addr >= (0x080100000L+100).asUInt)|tNasti.ar.bits.addr<=0x080100000L.asUInt)
+  // pendingReads.dec := (tNasti.r.fire && tNasti.r.bits.last) & ((tNasti.ar.bits.addr >= (0x080100000L+100).asUInt)|tNasti.ar.bits.addr<=0x080100000L.asUInt)
+  pendingReads.inc := tNasti.ar.fire 
+  pendingReads.dec := (tNasti.r.fire && tNasti.r.bits.last) 
+
 
   val pendingAWReq = SatUpDownCounter(cfg.maxWrites)
   pendingAWReq.inc := tNasti.aw.fire
@@ -118,7 +133,7 @@ abstract class TimingModel(val cfg: BaseConfig)(implicit val p: Parameters) exte
 
   // Release; returns responses to target
   val xactionRelease = Module(new AXI4Releaser)
-  xactionRelease.io.docmread := io.docmread
+  // xactionRelease.io.docmread := io.docmread
   tNasti.r <> xactionRelease.io.r
   tNasti.b <> xactionRelease.io.b
   io.egressReq <> xactionRelease.io.egressReq
@@ -209,9 +224,52 @@ abstract class SplitTransactionModelIO(implicit p: Parameters)
   val mmReg: SplitTransactionMMRegIO
 }
 
+abstract class SplitTransactionModelWithCMsketchIO(implicit p: Parameters)
+    extends TimingModelWithCMsketchIO()(p) {
+      // extends TimingModelIO()(p) {
+  // This sub-bundle contains all the programmable fields of the model
+  val mmReg: SplitTransactionMMRegIO
+}
+
 abstract class SplitTransactionModel(cfg: BaseConfig)(implicit p: Parameters)
     extends TimingModel(cfg)(p) {
   override val io: SplitTransactionModelIO
+
+  pendingReads.max := io.mmReg.readMaxReqs
+  pendingAWReq.max := io.mmReg.writeMaxReqs
+  pendingWReq.max  := io.mmReg.writeMaxReqs
+  nastiReq.ar.ready := ~pendingReads.full
+  nastiReq.aw.ready := ~pendingAWReq.full
+  nastiReq.w.ready  := ~pendingWReq.full
+
+  //recombines AW and W transactions before passing them onto the rest of the model
+  val awQueue = Module(new Queue(new NastiWriteAddressChannel, cfg.maxWrites, flow = true))
+
+  val newWReq = if (!cfg.useLLCModel) {
+    ((pendingWReq.value > pendingAWReq.value) && pendingAWReq.inc) ||
+    ((pendingWReq.value < pendingAWReq.value) && pendingWReq.inc) ||
+    (pendingWReq.inc && pendingAWReq.inc)
+  } else {
+    val memWReqs = SatUpDownCounter(cfg.maxWrites)
+    val newWReq = ((memWReqs.value > awQueue.io.count) && nastiReq.aw.fire) ||
+                  ((memWReqs.value < awQueue.io.count) && memWReqs.inc) ||
+                   (memWReqs.inc && nastiReq.aw.fire)
+
+    memWReqs.inc := nastiReq.w.fire && nastiReq.w.bits.last
+    memWReqs.dec := newWReq
+    newWReq
+  }
+
+  awQueue.io.enq.bits := nastiReq.aw.bits
+  awQueue.io.enq.valid := nastiReq.aw.fire
+  awQueue.io.deq.ready := newWReq
+  assert(awQueue.io.enq.ready || !nastiReq.aw.fire,
+    "AW queue in SplitTransaction timing model would overflow.")
+}
+
+abstract class SplitTransactionModelWithCMsketch(cfg: BaseConfig)(implicit p: Parameters)
+    extends TimingModelWithCMsketch(cfg)(p) {
+  override val io: SplitTransactionModelWithCMsketchIO
 
   pendingReads.max := io.mmReg.readMaxReqs
   pendingAWReq.max := io.mmReg.writeMaxReqs

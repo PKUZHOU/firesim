@@ -26,11 +26,17 @@ import midas.widgets._
 import scala.math.min
 import Console.{UNDERLINED, RESET}
 import firrtl.options.DoNotTerminateOnExit
+import freechips.rocketchip.config._
+
+case class CMsketchParam (
+   CMsketchwidth :Int = 100,
+   CMsketchDeepth :Int = 5,
+   CMaddr: Long = 0x80100000L
+)
 
 
 class MyModule(implicit p: Parameters) extends Module {
   val io = IO(new Bundle {
-    // val enq = Input(Bool())
     val ar = Flipped(Decoupled(new NastiReadAddressChannel))
     val empty = Output(Bool())
     val full  = Output(Bool())
@@ -46,18 +52,14 @@ class MyModule(implicit p: Parameters) extends Module {
   val queue = Queue(io.ar, 4, pipe = true)
   queue.ready := !io.full
   io.ar.ready := !io.full
-  // queue.valid := !io.empty
-  // queue.valid := !io.empty
   io.cmreadque.bits  := queue.bits
   io.cmreadque.valid := !io.empty
-  // queue.ready := io.cmreadque.ready
 }
 
 class FASEDTargetIOWithCMsketch(implicit val p: Parameters) extends Bundle {
   val axi4 = Flipped(new NastiIO)
   val reset = Input(Bool())
   val clock = Input(Clock())
-  // val cmdata = Flipped(new CMsketchIO)
 }
 
 class FASEDMemoryTimingModelWithCMsketch(completeConfig: CompleteConfig, hostParams: Parameters) extends BridgeModule[HostPortIO[FASEDTargetIOWithCMsketch]]()(hostParams)
@@ -69,7 +71,7 @@ class FASEDMemoryTimingModelWithCMsketch(completeConfig: CompleteConfig, hostPar
   implicit override val p = hostParams.alterPartial({
     case NastiKey => completeConfig.axi4Widths
     case FasedAXI4Edge => completeConfig.axi4Edge
-  })
+  }) 
 
   val toHostDRAMNode = AXI4MasterNode(
     Seq(AXI4MasterPortParameters(
@@ -131,8 +133,10 @@ class FASEDMemoryTimingModelWithCMsketch(completeConfig: CompleteConfig, hostPar
     nastiToHostDRAM.ar <> ingress.io.nastiOutputs.ar
     nastiToHostDRAM.w  <> ingress.io.nastiOutputs.w
 
-    val n = 100
-
+    val cmsketchparam = new CMsketchParam
+    val w = cmsketchparam.CMsketchwidth
+    val d = cmsketchparam.CMsketchDeepth
+    val cmaddr = cmsketchparam.CMaddr
     val datain = RegInit(0.U(35.W))
     datain := tNasti.aw.bits.addr
     val wren = RegInit(false.B)
@@ -140,7 +144,7 @@ class FASEDMemoryTimingModelWithCMsketch(completeConfig: CompleteConfig, hostPar
 
     val docmread = Wire(Bool())
     val enq = Wire(Bool())
-    enq := ((0x80100000L.asUInt<tNasti.ar.bits.addr)&(tNasti.ar.bits.addr<0x80100063L.asUInt)) & tNasti.ar.valid
+    enq := ((cmaddr.asUInt<tNasti.ar.bits.addr)&(tNasti.ar.bits.addr<(cmaddr+w).asUInt)) & tNasti.ar.valid
 
     val cmreadque = Module(new MyModule)
     cmreadque.io.ar.ready  <> tNasti.ar.ready
@@ -148,7 +152,7 @@ class FASEDMemoryTimingModelWithCMsketch(completeConfig: CompleteConfig, hostPar
     cmreadque.io.ar.bits   := tNasti.ar.bits
     
 
-    val cm = Module(new CMsketch(n,5)(p))
+    val cm = Module(new CMsketch(w,d)(p))
     chisel3.dontTouch(cm.io)
     cm.io.datain  := datain
     cm.io.wren    := wren
@@ -214,7 +218,7 @@ class FASEDMemoryTimingModelWithCMsketch(completeConfig: CompleteConfig, hostPar
     gate.I := clock
     gate.CE := targetFire
 
-    val model = withClock(gate.O)(cfg.elaborate())
+    val model = withClock(gate.O)(cfg.elaboratewithcmsketch())
     printGenerationConfig()
     model.tNasti.aw <> tNasti.aw
     model.tNasti.w <> tNasti.w
