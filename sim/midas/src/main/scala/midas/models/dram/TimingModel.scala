@@ -135,10 +135,8 @@ abstract class TimingModel(val cfg: BaseConfig)(implicit val p: Parameters) exte
   val xactionRelease = Module(new AXI4Releaser)
   // xactionRelease.io.docmread := io.docmread
   tNasti.r <> xactionRelease.io.r
-  tNasti.b <> xactionRelease.io.b
+  tNasti.r <> xactionRelease.io.r
   io.egressReq <> xactionRelease.io.egressReq
-  xactionRelease.io.egressResp <> io.egressResp
-
   if (cfg.useLLCModel) {
     // Drop the LLC model inline
     val llc_model = Module(new LLCModel(cfg))
