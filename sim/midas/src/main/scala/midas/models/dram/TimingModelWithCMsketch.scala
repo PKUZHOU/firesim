@@ -33,10 +33,7 @@ abstract class TimingModelWithCMsketch(val cfg: BaseConfig)(implicit val p: Para
   // containing all of the requisite runtime-settings and instrumentation brought
   // out as inputs and outputs respectively. See MMRegIO above.
   // if(true){
-    val io: TimingModelWithCMsketchIO
-  // } else {
-  //   val io : TimingModelIO
-  // }
+  val io: TimingModelWithCMsketchIO
   val longName: String
   // Implemented by concrete timing models to describe their configuration during
   // chisel elaboration
@@ -86,7 +83,7 @@ abstract class TimingModelWithCMsketch(val cfg: BaseConfig)(implicit val p: Para
     "Illegal aw request: memory model only supports incrementing bursts")
 
   // Release; returns responses to target
-  val xactionRelease = Module(new AXI4Releaser)
+  val xactionRelease = Module(new AXI4ReleaserWithCMsketch)
   xactionRelease.io.docmread := io.docmread
   tNasti.r <> xactionRelease.io.r
   tNasti.b <> xactionRelease.io.b
