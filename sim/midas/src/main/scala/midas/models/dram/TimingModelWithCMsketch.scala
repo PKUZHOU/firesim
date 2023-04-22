@@ -155,3 +155,44 @@ abstract class TimingModelWithCMsketch(val cfg: BaseConfig)(implicit val p: Para
 //
 // This is in contrast to more complex DRAM models that propogate backpressure
 // from shared structures back to the AXI4 request channels.
+abstract class SplitTransactionModelWithCMsketchIO(implicit p: Parameters)
+    extends TimingModelWithCMsketchIO()(p) {
+  // This sub-bundle contains all the programmable fields of the model
+  val mmReg: SplitTransactionMMRegIO
+}
+
+abstract class SplitTransactionModelWithCMsketch(cfg: BaseConfig)(implicit p: Parameters)
+    extends TimingModelWithCMsketch(cfg)(p) {
+  override val io: SplitTransactionModelWithCMsketchIO
+
+  pendingReads.max := io.mmReg.readMaxReqs
+  pendingAWReq.max := io.mmReg.writeMaxReqs
+  pendingWReq.max  := io.mmReg.writeMaxReqs
+  nastiReq.ar.ready := ~pendingReads.full
+  nastiReq.aw.ready := ~pendingAWReq.full
+  nastiReq.w.ready  := ~pendingWReq.full
+
+  //recombines AW and W transactions before passing them onto the rest of the model
+  val awQueue = Module(new Queue(new NastiWriteAddressChannel, cfg.maxWrites, flow = true))
+
+  val newWReq = if (!cfg.useLLCModel) {
+    ((pendingWReq.value > pendingAWReq.value) && pendingAWReq.inc) ||
+    ((pendingWReq.value < pendingAWReq.value) && pendingWReq.inc) ||
+    (pendingWReq.inc && pendingAWReq.inc)
+  } else {
+    val memWReqs = SatUpDownCounter(cfg.maxWrites)
+    val newWReq = ((memWReqs.value > awQueue.io.count) && nastiReq.aw.fire) ||
+                  ((memWReqs.value < awQueue.io.count) && memWReqs.inc) ||
+                   (memWReqs.inc && nastiReq.aw.fire)
+
+    memWReqs.inc := nastiReq.w.fire && nastiReq.w.bits.last
+    memWReqs.dec := newWReq
+    newWReq
+  }
+
+  awQueue.io.enq.bits := nastiReq.aw.bits
+  awQueue.io.enq.valid := nastiReq.aw.fire
+  awQueue.io.deq.ready := newWReq
+  assert(awQueue.io.enq.ready || !nastiReq.aw.fire,
+    "AW queue in SplitTransaction timing model would overflow.")
+}

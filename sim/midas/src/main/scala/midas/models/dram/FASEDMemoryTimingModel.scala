@@ -342,7 +342,7 @@ class FASEDMemoryTimingModel(completeConfig: CompleteConfig, hostParams: Paramet
     gate.I := clock
     gate.CE := targetFire
 
-    val model = withClock(gate.O)(cfg.elaboratewithcmsketch())
+    val model = withClock(gate.O)(cfg.elaborate())
     printGenerationConfig()
 
     // HACK: Feeding valid back on ready and ready back on valid until we figure out

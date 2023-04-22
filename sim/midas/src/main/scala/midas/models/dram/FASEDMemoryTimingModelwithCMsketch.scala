@@ -151,14 +151,11 @@ class FASEDMemoryTimingModelWithCMsketch(completeConfig: CompleteConfig, hostPar
     cmreadque.io.ar.valid  := tNasti.ar.valid & enq
     cmreadque.io.ar.bits   := tNasti.ar.bits
     
-
     val cm = Module(new CMsketch(w,d)(p))
-    chisel3.dontTouch(cm.io)
     cm.io.datain  := datain
     cm.io.wren    := wren
     cm.io.readio.ar <> cmreadque.io.cmreadque
     docmread := !cmreadque.io.empty | !cm.io.readio.ar.ready
-    chisel3.dontTouch(docmread)
     
     val readEgress = Module(new ReadEgress(
       maxRequests = cfg.maxReads,
