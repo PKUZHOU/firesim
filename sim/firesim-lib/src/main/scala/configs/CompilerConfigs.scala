@@ -5,6 +5,7 @@ import firrtl.options.Dependency
 import freechips.rocketchip.config.Config
 import midas.TargetTransforms
 import firesim.bridges._
+import firesim.util._
 
 // Experimental: mixing this in will enable assertion synthesis
 class WithSynthAsserts extends Config((site, here, up) => {
@@ -81,5 +82,15 @@ class BaseVitisConfig extends Config(
   new WithAsyncResetReplacement ++
 //  new WithEC2F1Artefacts ++
 //  new WithILATopWiringTransform ++
+  new midas.VitisConfig
+)
+
+class WithAutoILA_BaseVitisConfig extends Config(
+  new WithWiringTransform ++
+  new WithAsyncResetReplacement ++
+//  new WithEC2F1Artefacts ++
+  // new WithILATopWiringTransform ++
+  // new WithILADepth(8192)++
+  new WithAutoILA++
   new midas.VitisConfig
 )

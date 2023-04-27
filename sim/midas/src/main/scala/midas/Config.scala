@@ -140,7 +140,7 @@ class VitisConfig extends Config(new Config((site, here, up) => {
   //          lacks a native AXI4LITE implementation) can't handle 0-width wires.
   case CtrlNastiKey   => NastiParameters(32, 12, 1)
   case HostMemChannelKey => HostMemChannelParams(
-    size      = 0x800000000L, // 16 GiB *2
+    size      = 0x400000000L, // 16 GiB
     beatBytes = 8,
     idBits    = 16)
   // This could be as many as four on a U250, but support for the other
