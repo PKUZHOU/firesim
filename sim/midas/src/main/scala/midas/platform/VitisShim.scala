@@ -36,6 +36,8 @@ class VitisShim(implicit p: Parameters) extends PlatformShim {
     val s_axi_lite = IO(Flipped(new XilinxAXI4Bundle(ctrlAXI4BundleParams, isAXI4Lite = true)))
     val host_mem_0 = IO((new XilinxAXI4Bundle(hostMemAXI4BundleParams)))
     val host_mem_1 = IO((new XilinxAXI4Bundle(hostMemAXI4BundleParams))) 
+    val host_mem_2 = IO((new XilinxAXI4Bundle(hostMemAXI4BundleParams))) 
+    val host_mem_3 = IO((new XilinxAXI4Bundle(hostMemAXI4BundleParams))) 
     val ap_rst = (!ap_rst_n.asBool)
 
     // Setup Internal Clocking
@@ -98,17 +100,45 @@ class VitisShim(implicit p: Parameters) extends PlatformShim {
       host_mem_cdc_1.io.s_axi.drivenByStandardAXI4(top.module.mem(1), hostClock, hostSyncReset)
       host_mem_cdc_1.io.s_axi_aclk    := hostClock
       host_mem_cdc_1.io.s_axi_aresetn := (!hostSyncReset).asAsyncReset
-      host_mem_cdc_1.io.s_axi.araddr  := 0x4400000000L.U(addrWidth) + top.module.mem(1).ar.bits.addr
-      host_mem_cdc_1.io.s_axi.awaddr  := 0x4400000000L.U(addrWidth) + top.module.mem(1).aw.bits.addr
+      host_mem_cdc_1.io.s_axi.araddr  := 0x5000000000L.U(addrWidth) + top.module.mem(1).ar.bits.addr
+      host_mem_cdc_1.io.s_axi.awaddr  := 0x5000000000L.U(addrWidth) + top.module.mem(1).aw.bits.addr
       host_mem_cdc_1.io.s_axi.arcache.foreach { _ := AXI4Parameters.CACHE_MODIFIABLE }
       host_mem_cdc_1.io.s_axi.awcache.foreach { _ := AXI4Parameters.CACHE_MODIFIABLE }
 
       host_mem_1                    <> host_mem_cdc_1.io.m_axi
       host_mem_cdc_1.io.m_axi_aclk    := ap_clk
       host_mem_cdc_1.io.m_axi_aresetn := ap_rst_n
+
+      val host_mem_cdc_2 = Module(new AXI4ClockConverter(hostMemAXI4BundleParams, "host_mem_cdc_2"))
+      host_mem_cdc_2.io.s_axi.drivenByStandardAXI4(top.module.mem(2), hostClock, hostSyncReset)
+      host_mem_cdc_2.io.s_axi_aclk    := hostClock
+      host_mem_cdc_2.io.s_axi_aresetn := (!hostSyncReset).asAsyncReset
+      host_mem_cdc_2.io.s_axi.araddr  := 0x6000000000L.U(addrWidth) + top.module.mem(2).ar.bits.addr
+      host_mem_cdc_2.io.s_axi.awaddr  := 0x6000000000L.U(addrWidth) + top.module.mem(2).aw.bits.addr
+      host_mem_cdc_2.io.s_axi.arcache.foreach { _ := AXI4Parameters.CACHE_MODIFIABLE }
+      host_mem_cdc_2.io.s_axi.awcache.foreach { _ := AXI4Parameters.CACHE_MODIFIABLE }
+
+      host_mem_2                    <> host_mem_cdc_2.io.m_axi
+      host_mem_cdc_2.io.m_axi_aclk    := ap_clk
+      host_mem_cdc_2.io.m_axi_aresetn := ap_rst_n
+
+      val host_mem_cdc_3 = Module(new AXI4ClockConverter(hostMemAXI4BundleParams, "host_mem_cdc_3"))
+      host_mem_cdc_3.io.s_axi.drivenByStandardAXI4(top.module.mem(3), hostClock, hostSyncReset)
+      host_mem_cdc_3.io.s_axi_aclk    := hostClock
+      host_mem_cdc_3.io.s_axi_aresetn := (!hostSyncReset).asAsyncReset
+      host_mem_cdc_3.io.s_axi.araddr  := 0x7000000000L.U(addrWidth) + top.module.mem(3).ar.bits.addr
+      host_mem_cdc_3.io.s_axi.awaddr  := 0x7000000000L.U(addrWidth) + top.module.mem(3).aw.bits.addr
+      host_mem_cdc_3.io.s_axi.arcache.foreach { _ := AXI4Parameters.CACHE_MODIFIABLE }
+      host_mem_cdc_3.io.s_axi.awcache.foreach { _ := AXI4Parameters.CACHE_MODIFIABLE }
+
+      host_mem_3                    <> host_mem_cdc_3.io.m_axi
+      host_mem_cdc_3.io.m_axi_aclk    := ap_clk
+      host_mem_cdc_3.io.m_axi_aresetn := ap_rst_n
     } else {
       host_mem_0.tieoffAsManager
       host_mem_1.tieoffAsManager
+      host_mem_2.tieoffAsManager
+      host_mem_3.tieoffAsManager
     }
 
     top.module.fpga_managed_axi4.map { axi4 =>
