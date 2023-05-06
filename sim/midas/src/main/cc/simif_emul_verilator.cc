@@ -11,6 +11,11 @@
 #include "emul/mmio.h"
 #include "emul/simif_emul.h"
 
+
+#define DUMP_START 0 
+#define DUMP_END -1
+#define DEBUG_INTERVAL 1000000
+
 /**
  * Verilator-specific metasimulator implementation.
  */
@@ -74,8 +79,8 @@ int simif_emul_verilator_t::run(simulation_t &sim) {
   }
   top->reset = 0;
   uint64_t debug_stamp=0;
-  uint64_t debug_interval=1000000;
-  while (!top->fin&& main_time<=static_cast<uint64_t>(1000000000000)) {
+  uint64_t debug_interval = DEBUG_INTERVAL;
+  while (!top->fin && ((DUMP_END == -1) || main_time <=static_cast<uint64_t>(DUMP_END))) {
     tick();
     if(main_time>debug_stamp && main_time-debug_stamp>debug_interval){
       std::cout<<"main_time"<<main_time<<std::endl;
@@ -90,7 +95,7 @@ void simif_emul_verilator_t::tick() {
   top->eval();
 
 #if VM_TRACE
-  if (tfp&&main_time>=1391000000&&main_time<=1393000000)
+  if (tfp && main_time >= DUMP_START && (DUMP_END == -1 || main_time <= DUMP_END))
     tfp->dump((double)main_time);
 #endif // VM_TRACE
   main_time++;
@@ -98,7 +103,7 @@ void simif_emul_verilator_t::tick() {
   top->eval();
 
 #if VM_TRACE
-  if (tfp&&main_time>=1391000000&&main_time<=1393000000)
+  if (tfp && main_time >= DUMP_START && (DUMP_END == -1 || main_time <= DUMP_END))
     tfp->dump((double)main_time);
 #endif // VM_TRACE
   main_time++;
