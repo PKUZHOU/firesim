@@ -97,11 +97,11 @@ set host_mem_3_offset      [::ipx::add_register -quiet "host_mem_3_offset" $addr
 ### TODO: revise address_offset
 set_property address_offset 0x010 $host_mem_0_offset
 set_property size           64    $host_mem_0_offset
-set_property address_offset 0x050 $host_mem_1_offset
+set_property address_offset 0x020 $host_mem_1_offset
 set_property size           64    $host_mem_1_offset
-set_property address_offset 0x090 $host_mem_2_offset
+set_property address_offset 0x030 $host_mem_2_offset
 set_property size           64    $host_mem_2_offset
-set_property address_offset 0x0d0 $host_mem_3_offset
+set_property address_offset 0x040 $host_mem_3_offset
 set_property size           64    $host_mem_3_offset
 
 set_property slave_memory_map_ref "s_axi_lite" [::ipx::get_bus_interfaces -of $core "s_axi_lite"]
