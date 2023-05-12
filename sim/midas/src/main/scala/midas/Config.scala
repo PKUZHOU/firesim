@@ -145,7 +145,7 @@ class VitisConfig extends Config(new Config((site, here, up) => {
     idBits    = 16)
   // This could be as many as four on a U250, but support for the other
   // channels requires adding address offsets in the shim (TODO).
-  case HostMemNumChannels => 2
+  case HostMemNumChannels => 4
   // We don't need to provide circuit paths because
   // 1) The Shim module is the top-level of the kernel
   // 2) Implementation constraints are scoped to the kernel level in our vitis flow
