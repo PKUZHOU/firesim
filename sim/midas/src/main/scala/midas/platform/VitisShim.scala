@@ -21,6 +21,9 @@ object VitisConstants {
 
   /** The hardcoded TCL variable name used to specify the simulator's frequency */
   val frequencyVariableName = "frequency"
+
+
+  val nHostChannels = 2
 }
 
 class VitisShim(implicit p: Parameters) extends PlatformShim {
@@ -34,10 +37,14 @@ class VitisShim(implicit p: Parameters) extends PlatformShim {
     val ap_rst_n   = IO(Input(AsyncReset()))
     val ap_clk     = IO(Input(Clock()))
     val s_axi_lite = IO(Flipped(new XilinxAXI4Bundle(ctrlAXI4BundleParams, isAXI4Lite = true)))
+
+    // val host_mem = IO(Vec(VitisConstants.nHostChannels, new XilinxAXI4Bundle(hostMemAXI4BundleParams)))
+
     val host_mem_0 = IO((new XilinxAXI4Bundle(hostMemAXI4BundleParams)))
-    val host_mem_1 = IO((new XilinxAXI4Bundle(hostMemAXI4BundleParams))) 
-    val host_mem_2 = IO((new XilinxAXI4Bundle(hostMemAXI4BundleParams))) 
-    val host_mem_3 = IO((new XilinxAXI4Bundle(hostMemAXI4BundleParams))) 
+    val host_mem_1 = IO((new XilinxAXI4Bundle(hostMemAXI4BundleParams)))
+
+    // val host_mem_2 = IO((new XilinxAXI4Bundle(hostMemAXI4BundleParams))) 
+    // val host_mem_3 = IO((new XilinxAXI4Bundle(hostMemAXI4BundleParams))) 
     val ap_rst = (!ap_rst_n.asBool)
 
     // Setup Internal Clocking
@@ -80,9 +87,29 @@ class VitisShim(implicit p: Parameters) extends PlatformShim {
     ctrl_cdc.io.m_axi.driveStandardAXI4(axi4ToNasti.io.axi4, hostClock, hostSyncReset)
     top.module.ctrl <> axi4ToNasti.io.nasti
 
+    // if (top.module.mem.nonEmpty) {
+    //   val addrWidth = VitisConstants.axi4MAddressBits.W
+    //   for ((bundle, i) <- host_mem.zipWithIndex) {
+    //     val host_mem_cdc = Module(new AXI4ClockConverter(hostMemAXI4BundleParams, s"host_mem_cdc_$i"))
+    //     host_mem_cdc.io.s_axi.drivenByStandardAXI4(top.module.mem(i), hostClock, hostSyncReset)
+    //     host_mem_cdc.io.s_axi_aclk    := hostClock
+    //     host_mem_cdc.io.s_axi_aresetn := (!hostSyncReset).asAsyncReset
+    //     host_mem_cdc.io.s_axi.araddr  := 0x4000000000L.U(addrWidth) + i.U * 0x1000000000L.U(addrWidth) + top.module.mem(i).ar.bits.addr
+    //     host_mem_cdc.io.s_axi.awaddr  := 0x4000000000L.U(addrWidth) + i.U * 0x1000000000L.U(addrWidth) + top.module.mem(i).aw.bits.addr
+    //     host_mem_cdc.io.s_axi.arcache.foreach { _ := AXI4Parameters.CACHE_MODIFIABLE }
+    //     host_mem_cdc.io.s_axi.awcache.foreach { _ := AXI4Parameters.CACHE_MODIFIABLE }
+
+    //     host_mem(i) <> host_mem_cdc.io.m_axi
+    //     host_mem_cdc.io.m_axi_aclk    := ap_clk
+    //     host_mem_cdc.io.m_axi_aresetn := ap_rst_n
+    //   }
+    // }
+    // else {
+    //   host_mem.foreach { _.tieoffAsManager() }
+    // }
+
     if (top.module.mem.nonEmpty) {
       val addrWidth = VitisConstants.axi4MAddressBits.W
-
       val host_mem_cdc_0 = Module(new AXI4ClockConverter(hostMemAXI4BundleParams, "host_mem_cdc_0"))
       host_mem_cdc_0.io.s_axi.drivenByStandardAXI4(top.module.mem(0), hostClock, hostSyncReset)
       host_mem_cdc_0.io.s_axi_aclk    := hostClock
@@ -109,36 +136,36 @@ class VitisShim(implicit p: Parameters) extends PlatformShim {
       host_mem_cdc_1.io.m_axi_aclk    := ap_clk
       host_mem_cdc_1.io.m_axi_aresetn := ap_rst_n
 
-      val host_mem_cdc_2 = Module(new AXI4ClockConverter(hostMemAXI4BundleParams, "host_mem_cdc_2"))
-      host_mem_cdc_2.io.s_axi.drivenByStandardAXI4(top.module.mem(2), hostClock, hostSyncReset)
-      host_mem_cdc_2.io.s_axi_aclk    := hostClock
-      host_mem_cdc_2.io.s_axi_aresetn := (!hostSyncReset).asAsyncReset
-      host_mem_cdc_2.io.s_axi.araddr  := 0x6000000000L.U(addrWidth) + top.module.mem(2).ar.bits.addr
-      host_mem_cdc_2.io.s_axi.awaddr  := 0x6000000000L.U(addrWidth) + top.module.mem(2).aw.bits.addr
-      host_mem_cdc_2.io.s_axi.arcache.foreach { _ := AXI4Parameters.CACHE_MODIFIABLE }
-      host_mem_cdc_2.io.s_axi.awcache.foreach { _ := AXI4Parameters.CACHE_MODIFIABLE }
+      // val host_mem_cdc_2 = Module(new AXI4ClockConverter(hostMemAXI4BundleParams, "host_mem_cdc_2"))
+      // host_mem_cdc_2.io.s_axi.drivenByStandardAXI4(top.module.mem(2), hostClock, hostSyncReset)
+      // host_mem_cdc_2.io.s_axi_aclk    := hostClock
+      // host_mem_cdc_2.io.s_axi_aresetn := (!hostSyncReset).asAsyncReset
+      // host_mem_cdc_2.io.s_axi.araddr  := 0x6000000000L.U(addrWidth) + top.module.mem(2).ar.bits.addr
+      // host_mem_cdc_2.io.s_axi.awaddr  := 0x6000000000L.U(addrWidth) + top.module.mem(2).aw.bits.addr
+      // host_mem_cdc_2.io.s_axi.arcache.foreach { _ := AXI4Parameters.CACHE_MODIFIABLE }
+      // host_mem_cdc_2.io.s_axi.awcache.foreach { _ := AXI4Parameters.CACHE_MODIFIABLE }
 
-      host_mem_2                    <> host_mem_cdc_2.io.m_axi
-      host_mem_cdc_2.io.m_axi_aclk    := ap_clk
-      host_mem_cdc_2.io.m_axi_aresetn := ap_rst_n
+      // host_mem_2                    <> host_mem_cdc_2.io.m_axi
+      // host_mem_cdc_2.io.m_axi_aclk    := ap_clk
+      // host_mem_cdc_2.io.m_axi_aresetn := ap_rst_n
 
-      val host_mem_cdc_3 = Module(new AXI4ClockConverter(hostMemAXI4BundleParams, "host_mem_cdc_3"))
-      host_mem_cdc_3.io.s_axi.drivenByStandardAXI4(top.module.mem(3), hostClock, hostSyncReset)
-      host_mem_cdc_3.io.s_axi_aclk    := hostClock
-      host_mem_cdc_3.io.s_axi_aresetn := (!hostSyncReset).asAsyncReset
-      host_mem_cdc_3.io.s_axi.araddr  := 0x7000000000L.U(addrWidth) + top.module.mem(3).ar.bits.addr
-      host_mem_cdc_3.io.s_axi.awaddr  := 0x7000000000L.U(addrWidth) + top.module.mem(3).aw.bits.addr
-      host_mem_cdc_3.io.s_axi.arcache.foreach { _ := AXI4Parameters.CACHE_MODIFIABLE }
-      host_mem_cdc_3.io.s_axi.awcache.foreach { _ := AXI4Parameters.CACHE_MODIFIABLE }
+      // val host_mem_cdc_3 = Module(new AXI4ClockConverter(hostMemAXI4BundleParams, "host_mem_cdc_3"))
+      // host_mem_cdc_3.io.s_axi.drivenByStandardAXI4(top.module.mem(3), hostClock, hostSyncReset)
+      // host_mem_cdc_3.io.s_axi_aclk    := hostClock
+      // host_mem_cdc_3.io.s_axi_aresetn := (!hostSyncReset).asAsyncReset
+      // host_mem_cdc_3.io.s_axi.araddr  := 0x7000000000L.U(addrWidth) + top.module.mem(3).ar.bits.addr
+      // host_mem_cdc_3.io.s_axi.awaddr  := 0x7000000000L.U(addrWidth) + top.module.mem(3).aw.bits.addr
+      // host_mem_cdc_3.io.s_axi.arcache.foreach { _ := AXI4Parameters.CACHE_MODIFIABLE }
+      // host_mem_cdc_3.io.s_axi.awcache.foreach { _ := AXI4Parameters.CACHE_MODIFIABLE }
 
-      host_mem_3                    <> host_mem_cdc_3.io.m_axi
-      host_mem_cdc_3.io.m_axi_aclk    := ap_clk
-      host_mem_cdc_3.io.m_axi_aresetn := ap_rst_n
+      // host_mem_3                    <> host_mem_cdc_3.io.m_axi
+      // host_mem_cdc_3.io.m_axi_aclk    := ap_clk
+      // host_mem_cdc_3.io.m_axi_aresetn := ap_rst_n
     } else {
       host_mem_0.tieoffAsManager
       host_mem_1.tieoffAsManager
-      host_mem_2.tieoffAsManager
-      host_mem_3.tieoffAsManager
+      // host_mem_2.tieoffAsManager
+      // host_mem_3.tieoffAsManager
     }
 
     top.module.fpga_managed_axi4.map { axi4 =>

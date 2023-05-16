@@ -170,9 +170,11 @@ vpp_config_overlay_args = $(addprefix --config ,$(vpp_config_overlays))
 	cd $(@D)/..; $(VPP) $(vpp_config_overlay_args) $(VPP_TARGET_SPECIFIC_ARGS) $(VPP_COMMON_ARGS) \
 	--connectivity.sp $(PROJECT_NAME)_1.host_mem_0:DDR[0] \
 	--connectivity.sp $(PROJECT_NAME)_1.host_mem_1:DDR[1] \
-	--connectivity.sp $(PROJECT_NAME)_1.host_mem_2:DDR[2] \
-	--connectivity.sp $(PROJECT_NAME)_1.host_mem_3:DDR[3] \
 	--link $(VPP_LDFLAGS) -o $@ $<
+
+# --connectivity.sp $(PROJECT_NAME)_1.host_mem_2:DDR[2] \
+# --connectivity.sp $(PROJECT_NAME)_1.host_mem_3:DDR[3] \
+# --link $(VPP_LDFLAGS) -o $@ $<
 
 
 %/$(BUILD_SUBDIR)/$(PROJECT_NAME).xclbin: %/$(TEMP_SUBDIR)/$(PROJECT_NAME).link.xclbin $(vpp_config_overlays)
