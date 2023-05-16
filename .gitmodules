@@ -8,6 +8,9 @@
 [submodule "sw/network-benchmarks"]
 	path = sw/network-benchmarks
 	url = https://github.com/firesim/network-benchmarks.git
+[submodule "sw/neomem_workloads"]
+	path = sw/neomem-workloads
+	url = git@github.com:PKUZHOU/neomem_workloads.git
 [submodule "deploy/workloads/memcached-thread-imbalance/mutilate-loadgen-riscv-release"]
 	path = deploy/workloads/memcached-thread-imbalance/mutilate-loadgen-riscv-release
 	url = https://github.com/firesim/mutilate-loadgen-riscv-release
