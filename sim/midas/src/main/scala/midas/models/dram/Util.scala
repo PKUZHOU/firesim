@@ -328,6 +328,16 @@ class AXI4ReleaserIO(implicit val p: Parameters) extends ParameterizedBundle()(p
   val nextWrite = Flipped(Decoupled(new WriteResponseMetaData))
 }
 
+class AXI4ReleaserWithNeoProfilerIO(implicit val p: Parameters) extends ParameterizedBundle()(p) {
+  val b = Decoupled(new NastiWriteResponseChannel)
+  val r = Decoupled(new NastiReadDataChannel)
+  val egressReq = new EgressReq
+  val egressResp = Flipped(new EgressResp)
+  val nextRead = Flipped(Decoupled(new ReadResponseMetaData))
+  val nextWrite = Flipped(Decoupled(new WriteResponseMetaData))
+  val docmread = Input(Bool())
+}
+
 
 class AXI4Releaser(implicit p: Parameters) extends Module {
   val io = IO(new AXI4ReleaserIO)
@@ -337,6 +347,26 @@ class AXI4Releaser(implicit p: Parameters) extends Module {
   io.egressReq.r.valid := io.nextRead.fire
   io.egressReq.r.bits := io.nextRead.bits.id
   io.r.valid := currentRead.valid
+  io.r.bits := io.egressResp.rBits
+  io.egressResp.rReady := io.r.ready
+
+  val currentWrite = Queue(io.nextWrite, 1, pipe = true)
+  currentWrite.ready := io.b.fire
+  io.egressReq.b.valid := io.nextWrite.fire
+  io.egressReq.b.bits := io.nextWrite.bits.id
+  io.b.valid := currentWrite.valid
+  io.b.bits := io.egressResp.bBits
+  io.egressResp.bReady := io.b.ready
+}
+
+class AXI4ReleaserWithNeoProfiler(implicit p: Parameters) extends Module {
+  val io = IO(new AXI4ReleaserWithNeoProfilerIO)
+
+  val currentRead = Queue(io.nextRead, 1, pipe = true)
+  currentRead.ready := io.r.fire && io.r.bits.last
+  io.egressReq.r.valid := io.nextRead.fire
+  io.egressReq.r.bits := io.nextRead.bits.id
+  io.r.valid := currentRead.valid & (!io.docmread)
   io.r.bits := io.egressResp.rBits
   io.egressResp.rReady := io.r.ready
 
