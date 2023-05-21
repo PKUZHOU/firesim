@@ -10,7 +10,7 @@ import freechips.rocketchip.amba.axi4._
 case class NeoProfParams(
     CMsketchWidth: Int = 32,
     CMsketchDepth: Int = 4,
-    neoprofAddr: Long = 0x80100000L,
+    neoprofAddr: Long = 0x280100030L,
     datainWidth: Int = 35
 )
 
@@ -38,6 +38,15 @@ class NeoProfiler(params: NeoProfParams)(implicit p: Parameters) extends Module 
     id := 0.U
     user := 0.U
   }
+  val rden   = Wire(Bool())
+  rden := io.readio.ar.valid && !RegNext(io.readio.ar.valid)
+  val doread = RegInit(false.B)
+  when(io.readio.ar.valid){
+    doread := true.B
+  }
+  when(io.readio.r.valid){
+    doread := false.B
+  }
   busy := rden || doread 
   chisel3.dontTouch(busy)
   io.readio.ar.ready:= !busy  
@@ -47,15 +56,4 @@ class NeoProfiler(params: NeoProfParams)(implicit p: Parameters) extends Module 
   io.readio.r.bits.last  := io.readio.r.valid 
   (io.readio.r.bits.id)  := id
   (io.readio.r.bits.user):= user          
-
-  val rden   = Wire(Bool())
-  rden := io.readio.ar.valid && !RegNext(io.readio.ar.valid)
-
-  val doread = RegInit(false.B)
-  when(io.readio.ar.valid){
-    doread := true.B
-  }
-  when(io.readio.r.valid){
-    doread := false.B
-  }
 }
