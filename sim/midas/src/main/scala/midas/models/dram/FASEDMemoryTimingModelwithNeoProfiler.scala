@@ -48,9 +48,9 @@ class MyReadQueueModule(implicit p: Parameters) extends Module {
     is(1.U){num := num -1.U}
   }
   io.empty := num === 0.U
-  io.full  := num === 4.U
-  val queue = Queue(io.ar, 4, pipe = true)
-  queue.ready := !io.full
+  io.full  := num === 1.U
+  val queue = Queue(io.ar, 1, pipe = true)
+  queue.ready := !io.empty && io.readque.ready
   io.ar.ready := !io.full
   io.readque.bits  := queue.bits
   io.readque.valid := !io.empty
@@ -149,7 +149,8 @@ class FASEDMemoryTimingModelWithNeoProfiler(completeConfig: CompleteConfig, host
     npfEnq := (neoprofAddr.asUInt === tNasti.ar.bits.addr.asUInt) && tNasti.ar.valid
 
     val NPFreadque = Module(new MyReadQueueModule)
-    NPFreadque.io.ar.ready  <> tNasti.ar.ready
+    // NPFreadque.io.ar.ready  := tNasti.ar.ready
+    tNasti.ar.ready := NPFreadque.io.ar.ready
     NPFreadque.io.ar.valid  := tNasti.ar.valid && npfEnq
     NPFreadque.io.ar.bits   := tNasti.ar.bits
     
