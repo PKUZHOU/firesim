@@ -23,7 +23,7 @@ abstract class TimingModelWithNeoProfilerIO(implicit p: Parameters) extends Bund
   val egressResp = Flipped(new EgressResp)
   // This sub-bundle contains all the programmable fields of the model
   val mmReg: MMRegIO
-  val docmread = Input(Bool())
+  val doNPFread = Input(Bool())
 }
 
 abstract class TimingModelWithNeoProfiler(val cfg: BaseConfig)(implicit val p: Parameters) extends Module
@@ -84,7 +84,7 @@ abstract class TimingModelWithNeoProfiler(val cfg: BaseConfig)(implicit val p: P
 
   // Release; returns responses to target
   val xactionRelease = Module(new AXI4ReleaserWithNeoProfiler)
-  xactionRelease.io.docmread := io.docmread
+  xactionRelease.io.doNPFread := io.doNPFread
   tNasti.r <> xactionRelease.io.r
   tNasti.b <> xactionRelease.io.b
   io.egressReq <> xactionRelease.io.egressReq

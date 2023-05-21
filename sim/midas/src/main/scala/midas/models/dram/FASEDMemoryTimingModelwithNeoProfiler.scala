@@ -28,22 +28,22 @@ import Console.{UNDERLINED, RESET}
 import firrtl.options.DoNotTerminateOnExit
 import freechips.rocketchip.config._
 
-case class NeoProfilerParam (
-   CMsketchwidth :Int = 100,
-   CMsketchDeepth :Int = 5,
-   CMaddr: Long = 0x80100000L
-)
+// case class NeoProfParam (
+//    CMsketchWidth :Int = 100,
+//    CMsketchDeepth :Int = 5,
+//    neoprofAddr: Long = 0x80100000L
+// )
 
 
-class MyModule(implicit p: Parameters) extends Module {
+class MyReadQueueModule(implicit p: Parameters) extends Module {
   val io = IO(new Bundle {
     val ar = Flipped(Decoupled(new NastiReadAddressChannel))
     val empty = Output(Bool())
     val full  = Output(Bool())
-    val cmreadque =Decoupled(new NastiReadAddressChannel)
+    val readque = Decoupled(new NastiReadAddressChannel)
   })
   val num = RegInit(0.U(4.W))
-  switch(Cat(io.ar.valid,io.cmreadque.fire)){
+  switch(Cat(io.ar.valid,io.readque.fire)){
     is(2.U){num := num +1.U}
     is(1.U){num := num -1.U}
   }
@@ -52,8 +52,8 @@ class MyModule(implicit p: Parameters) extends Module {
   val queue = Queue(io.ar, 4, pipe = true)
   queue.ready := !io.full
   io.ar.ready := !io.full
-  io.cmreadque.bits  := queue.bits
-  io.cmreadque.valid := !io.empty
+  io.readque.bits  := queue.bits
+  io.readque.valid := !io.empty
 }
 
 class FASEDTargetIOWithNeoProfiler(implicit val p: Parameters) extends Bundle {
@@ -76,7 +76,7 @@ class FASEDMemoryTimingModelWithNeoProfiler(completeConfig: CompleteConfig, host
   val toHostDRAMNode = AXI4MasterNode(
     Seq(AXI4MasterPortParameters(
       masters = Seq(AXI4MasterParameters(
-        name = "fased-memory-timing-model",
+        name = "fased-memory-timing-model-with-neoprof",
         id   = IdRange(0, 1 << p(NastiKey).idBits),
         aligned = true, // This must be the case for the TL-based width adapter to work 
         maxFlight = Some(math.max(cfg.maxReadsPerID, cfg.maxWritesPerID))
@@ -133,29 +133,31 @@ class FASEDMemoryTimingModelWithNeoProfiler(completeConfig: CompleteConfig, host
     nastiToHostDRAM.ar <> ingress.io.nastiOutputs.ar
     nastiToHostDRAM.w  <> ingress.io.nastiOutputs.w
 
-    val cmsketchparam = new CMsketchParam
-    val w = cmsketchparam.CMsketchwidth
-    val d = cmsketchparam.CMsketchDeepth
-    val cmaddr = cmsketchparam.CMaddr
-    val datain = RegInit(0.U(35.W))
-    datain := tNasti.aw.bits.addr
-    val wren = RegInit(false.B)
-    wren := tNasti.aw.fire 
+    // Config Neo profiler 
+    val neoprofParam = new NeoProfParams
+    val neoprofAddr = neoprofParam.neoprofAddr
+    // the input of NeoProfiler is the address of the memory request
+    // BUG: Move this after LLC
+    val npfDataIn = RegInit(0.U(tNasti.ar.bits.addr.getWidth.W))
+    npfDataIn := tNasti.ar.bits.addr
 
-    val docmread = Wire(Bool())
-    val enq = Wire(Bool())
-    enq := ((cmaddr.asUInt<tNasti.ar.bits.addr)&(tNasti.ar.bits.addr<(cmaddr+w).asUInt)) & tNasti.ar.valid
+    val npfRecordEn = RegInit(false.B)
+    npfRecordEn := tNasti.ar.fire 
 
-    val cmreadque = Module(new MyModule)
-    cmreadque.io.ar.ready  <> tNasti.ar.ready
-    cmreadque.io.ar.valid  := tNasti.ar.valid & enq
-    cmreadque.io.ar.bits   := tNasti.ar.bits
+    val doNPFread = Wire(Bool()) // Read from NeoProfiler
+    val npfEnq = Wire(Bool()) // Check address and decide whether to enqueue to NeoProfiler
+    npfEnq := (neoprofAddr.asUInt === tNasti.ar.bits.addr.asUInt) && tNasti.ar.valid
+
+    val NPFreadque = Module(new MyReadQueueModule)
+    NPFreadque.io.ar.ready  <> tNasti.ar.ready
+    NPFreadque.io.ar.valid  := tNasti.ar.valid && npfEnq
+    NPFreadque.io.ar.bits   := tNasti.ar.bits
     
-    val cm = Module(new CMsketch(w,d)(p))
-    cm.io.datain  := datain
-    cm.io.wren    := wren
-    cm.io.readio.ar <> cmreadque.io.cmreadque
-    docmread := !cmreadque.io.empty | !cm.io.readio.ar.ready
+    val neoprof = Module(new NeoProfiler(neoprofParam)(p))
+    neoprof.io.datain  := npfDataIn // A valid signal?
+    neoprof.io.recordEn    := npfRecordEn // Used for mmio reg config
+    neoprof.io.readio.ar <> NPFreadque.io.readque // Used for hotness info readout
+    doNPFread := !NPFreadque.io.empty | !neoprof.io.readio.ar.ready // ???
     
     val readEgress = Module(new ReadEgress(
       maxRequests = cfg.maxReads,
@@ -178,7 +180,7 @@ class FASEDMemoryTimingModelWithNeoProfiler(completeConfig: CompleteConfig, host
 
     // Track outstanding requests to the host memory system
     val hOutstandingReads = SatUpDownCounter(cfg.maxReads)
-    hOutstandingReads.inc := toHostDRAM.ar.fire & !enq
+    hOutstandingReads.inc := toHostDRAM.ar.fire && !npfEnq
     hOutstandingReads.dec := toHostDRAM.r.fire && toHostDRAM.r.bits.last 
     hOutstandingReads.max := cfg.maxReads.U
     val hOutstandingWrites = SatUpDownCounter(cfg.maxWrites)
@@ -217,12 +219,13 @@ class FASEDMemoryTimingModelWithNeoProfiler(completeConfig: CompleteConfig, host
 
     val model = withClock(gate.O)(cfg.elaborateWithNeoProfiler())
     printGenerationConfig()
+
     model.tNasti.aw <> tNasti.aw
     model.tNasti.w <> tNasti.w
     tNasti.b <> model.tNasti.b
-    model.io.docmread := docmread
+    model.io.doNPFread := doNPFread
 
-    when(enq){
+    when(npfEnq){
       model.tNasti.ar.valid := false.B
       model.tNasti.ar.ready := DontCare
       model.tNasti.ar.bits  := tNasti.ar.bits
@@ -230,12 +233,12 @@ class FASEDMemoryTimingModelWithNeoProfiler(completeConfig: CompleteConfig, host
       model.tNasti.ar <> tNasti.ar
     }
 
-    when(docmread){
-      tNasti.r <> cm.io.readio.r
+    when(doNPFread){
+      tNasti.r <> neoprof.io.readio.r
       model.tNasti.r <> DontCare
     }.otherwise{
       tNasti.r <> model.tNasti.r
-      cm.io.readio.r := DontCare
+      neoprof.io.readio.r := DontCare
     }
 
     // HACK: Feeding valid back on ready and ready back on valid until we figure out
@@ -250,7 +253,7 @@ class FASEDMemoryTimingModelWithNeoProfiler(completeConfig: CompleteConfig, host
     ingress.io.nastiInputs.hBits.aw.bits := tNasti.aw.bits
 
     // Connect ar to ingress and model
-    ingress.io.nastiInputs.hBits.ar.valid := tNasti.ar.fire & !enq
+    ingress.io.nastiInputs.hBits.ar.valid := tNasti.ar.fire && !npfEnq
     ingress.io.nastiInputs.hBits.ar.bits := tNasti.ar.bits
 
     // Connect w to ingress and model
@@ -259,7 +262,7 @@ class FASEDMemoryTimingModelWithNeoProfiler(completeConfig: CompleteConfig, host
 
     // Connect target-level signals between egress and model
     readEgress.io.req.t := model.io.egressReq.r
-    readEgress.io.req.hValid := targetFire & !enq
+    readEgress.io.req.hValid := targetFire && !npfEnq
     readEgress.io.resp.tReady := model.io.egressResp.rReady 
     model.io.egressResp.rBits := readEgress.io.resp.tBits
 

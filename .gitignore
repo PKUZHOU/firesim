@@ -12,3 +12,6 @@ scala-doc-env.sh
 /.conda-env
 workspace
 .metals
+.github/actions/install-ci-python-reqs/action.yml
+conda-reqs.yaml
+conda-reqs.conda-lock.yml

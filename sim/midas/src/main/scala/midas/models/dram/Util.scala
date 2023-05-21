@@ -335,7 +335,7 @@ class AXI4ReleaserWithNeoProfilerIO(implicit val p: Parameters) extends Paramete
   val egressResp = Flipped(new EgressResp)
   val nextRead = Flipped(Decoupled(new ReadResponseMetaData))
   val nextWrite = Flipped(Decoupled(new WriteResponseMetaData))
-  val docmread = Input(Bool())
+  val doNPFread = Input(Bool())
 }
 
 
@@ -366,7 +366,7 @@ class AXI4ReleaserWithNeoProfiler(implicit p: Parameters) extends Module {
   currentRead.ready := io.r.fire && io.r.bits.last
   io.egressReq.r.valid := io.nextRead.fire
   io.egressReq.r.bits := io.nextRead.bits.id
-  io.r.valid := currentRead.valid & (!io.docmread)
+  io.r.valid := currentRead.valid && (!io.doNPFread)
   io.r.bits := io.egressResp.rBits
   io.egressResp.rReady := io.r.ready
 

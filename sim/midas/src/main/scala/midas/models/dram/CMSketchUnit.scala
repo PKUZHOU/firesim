@@ -12,7 +12,7 @@ import scala.math.pow
 
 class CMsketch(w:Int , d:Int)(implicit p: Parameters) extends Module {
   val io = IO(new Bundle {
-    val datain = Input(UInt(35.W))
+    val datain = Input(UInt(35.W)) //TODO: Configurable width
     val wren = Input(Bool())
     val readio =Flipped( new NastiReadIO)
   })
@@ -57,11 +57,11 @@ class CMsketch(w:Int , d:Int)(implicit p: Parameters) extends Module {
     }
   }
 
-    for (i <- 0 until d) {
-      for (j <- 0 until w) {
-        counter(i*w+j) := countgen(10000000.U, enable(i*w+j))
-      }
+  for (i <- 0 until d) {
+    for (j <- 0 until w) {
+      counter(i*w+j) := countgen(10000000.U, enable(i*w+j))
     }
+  }
 
   val rden   = Wire(Bool())
   rden := io.readio.ar.valid & !RegNext(io.readio.ar.valid)
