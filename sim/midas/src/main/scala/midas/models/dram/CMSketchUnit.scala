@@ -78,15 +78,18 @@ class CMsketch(w:Int , d:Int)(implicit p: Parameters) extends Module {
   val x = Wire(Bool())
   x := io.readio.ar.valid | doread
 
-  val datard = RegInit(0.U(35.W))
-  when(io.readio.ar.valid){
-    datard := io.readio.ar.bits.addr
-  }
-  when(io.readio.r.valid){
-    datard := 0.U(35.W)
-  }
+  // val datard = RegInit(0.U(35.W))
+  // when(io.readio.ar.valid){
+  //   datard := io.readio.ar.bits.addr
+  // }
+  // when(RegNext(io.readio.r.valid)){
+  //   datard := 0.U(35.W)
+  // }
+  val datard = Wire(UInt(35.W))
+  datard := io.readio.ar.bits.addr
   for(i <- 0 until(d)){
-    Hashrd(i) := Mux(x,Hash(datard,w.U,i+1),0.U)
+    // Hashrd(i) := Mux(x,Hash(datard,w.U,i+1),0.U)
+    Hashrd(i) := Hash(datard,w.U,i+1)
   }
   val findmin = Wire(Bool())
   findmin := rden & !RegNext(rden)
@@ -143,7 +146,7 @@ class CMsketch(w:Int , d:Int)(implicit p: Parameters) extends Module {
   busy := rden | doread 
   chisel3.dontTouch(busy)
   io.readio.ar.ready:= !busy  
-  (io.readio.r.valid) := doread & !(datamin === 10000000.U)
+  (io.readio.r.valid) := doread && !(datamin === 10000000.U)
   (io.readio.r.bits.data) := Mux(io.readio.r.valid,Mux(tempwren & (temp === io.readio.ar.bits.addr),datamin + 1.U,datamin),0.U)
   io.readio.r.bits.resp  := DontCare
   io.readio.r.bits.last  := io.readio.r.valid 

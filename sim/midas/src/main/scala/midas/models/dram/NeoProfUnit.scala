@@ -20,12 +20,25 @@ class NeoProfiler(params: NeoProfParams)(implicit p: Parameters) extends Module 
     val recordEn = Input(Bool())
     val readio = Flipped( new NastiReadIO)
   })
-
-  val tmpDataReg = RegInit(0xabc.U(params.datainWidth.W)) // Store the latest accessed page address
-
-  when(io.recordEn){
-    tmpDataReg := io.datain
+  val rden   = Wire(Bool())
+  rden := io.readio.ar.valid && !RegNext(io.readio.ar.valid)
+  val doread = RegInit(false.B)
+  when(io.readio.ar.valid){
+    doread := true.B
   }
+  when(io.readio.r.valid){
+    doread := false.B
+  }
+  val tmpDataReg = RegInit(0xabc.U(params.datainWidth.W)) // Store the latest accessed page address
+  val cmsketchProf = Module(new CMsketch(100,5)(p))
+  cmsketchProf.io.datain := io.datain
+  cmsketchProf.io.wren   := io.recordEn
+  val cmsketch_readio = Wire(new NastiReadIO)
+  // cmsketch_readio.ar.valid := (io.readio.ar.valid) && !RegNext(io.readio.ar.valid)
+  cmsketch_readio.ar.valid := (io.readio.ar.valid) && !doread
+  cmsketch_readio.ar.bits  := io.readio.ar.bits
+  cmsketch_readio.r.ready  := io.readio.r.ready
+  cmsketchProf.io.readio <> cmsketch_readio
 
   val busy = RegInit(false.B)
   val id = RegInit(0.U(4.W))
@@ -38,20 +51,12 @@ class NeoProfiler(params: NeoProfParams)(implicit p: Parameters) extends Module 
     id := 0.U
     user := 0.U
   }
-  val rden   = Wire(Bool())
-  rden := io.readio.ar.valid && !RegNext(io.readio.ar.valid)
-  val doread = RegInit(false.B)
-  when(io.readio.ar.valid){
-    doread := true.B
-  }
-  when(io.readio.r.valid){
-    doread := false.B
-  }
+
   busy := rden || doread 
   chisel3.dontTouch(busy)
   io.readio.ar.ready:= !busy  
-  (io.readio.r.valid) := doread
-  (io.readio.r.bits.data) := tmpDataReg
+  (io.readio.r.valid) := cmsketch_readio.r.valid
+  (io.readio.r.bits.data) := cmsketch_readio.r.bits.data
   io.readio.r.bits.resp  := DontCare
   io.readio.r.bits.last  := io.readio.r.valid 
   (io.readio.r.bits.id)  := id
