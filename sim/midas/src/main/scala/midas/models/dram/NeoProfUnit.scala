@@ -10,7 +10,7 @@ import freechips.rocketchip.amba.axi4._
 case class NeoProfParams(
     CMsketchWidth: Int = 32,
     CMsketchDepth: Int = 4,
-    neoprofAddr: Long = 0x280000030L, // 0000-1000 reserved for neoprof
+    neoprofAddr: Long = 0x180000000L, // 0000-1000 reserved for neoprof
     datainWidth: Int = 35
 )
 
